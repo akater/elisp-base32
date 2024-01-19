@@ -25,6 +25,17 @@ This is a port of =cl-base32=.
 "4dq6fy7e4xtop2hj"
 #+end_example
 
+** TEST-PASSED Use upper case
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(with-base32-upcase
+  (base32-from-bytes [-32 -31 -30 -29 -28 -27 -26 -25 -24 -23]))
+#+end_src
+
+#+EXPECTED:
+#+begin_example elisp
+"4DQ6FY7E4XTOP2HJ"
+#+end_example
+
 ** TEST-PASSED A 20-bytes array
 #+begin_src elisp :tangle no :results code :wrap example elisp
 (base32-from-bytes
@@ -95,6 +106,13 @@ t
      ;; upper case
      ((cl-char<= ?A a-digit ?Z)
       (- code (cl-char-code ?A))))))
+#+end_src
+
+#+begin_src elisp :results none
+(defmacro with-base32-upcase (&rest body)
+  (declare (indent 0))
+  `(let ((base32-alphabet (upcase base32-alphabet)))
+     ,@body))
 #+end_src
 
 * Read, write
