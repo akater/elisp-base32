@@ -256,17 +256,48 @@ If you want to run tests for ~base32~, ensure the following dependencies are ins
 #+end_src
 
 * Lengths
-#+begin_src elisp :results none
-(defun base32--unpadded-length (base32-string)
-  "Given a base32 string, compute the size of the raw base32 string, without any = padding."
-  (let* ((padded-length (length base32-string))
-         (unpadded-length padded-length))
-    (cl-dotimes (i padded-length)
-      (if (char-equal ?= (aref base32-string (- padded-length i)))
-          (cl-decf unpadded-length)
-        (cl-return unpadded-length)))))
+** unpadded-length
+*** Notes
+This is not used, is buggy in the original implementation, and the semantics is unclear to me.  I nevertheless leave the code here.
+
+*** Examples
+**** Basic Examples
+***** TEST-PASSED The length sans padding
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(base32--unpadded-length "4dq6fy7e4xtop2hj====")
 #+end_src
 
+#+EXPECTED:
+#+begin_example elisp
+16
+#+end_example
+
+**** Possible Issues
+***** TEST-PASSED The argument type is unclear
+I just don't know if it's considered a base32 string.
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(base32--unpadded-length "===")
+#+end_src
+
+#+EXPECTED:
+#+begin_example elisp
+0
+#+end_example
+
+** Dependencies
+#+begin_src elisp :results none
+(require 'cl-seq)
+#+end_src
+
+** Definition
+#+begin_src elisp :results none
+(defun base32--unpadded-length (base32-string)
+  "Given a BASE32-STRING, return the size of the raw string, without any = padding."
+  (1+ (or (cl-position ?= base32-string :from-end t :test-not #'char-equal)
+          -1)))
+#+end_src
+
+** byte-length
 #+begin_src elisp :results none
 (defun base32-byte-length (base32-string)
   "Given a BASE32-STRING, compute the number of bytes in the decoded data."
