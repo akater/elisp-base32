@@ -2,7 +2,6 @@
 #+title: base32
 #+subtitle: Base32 encoding in Emacs Lisp
 #+author: =#<PERSON akater A24961DE3ADD04E057ADCF4599555CE6F2E1B21D>=
-#+description: Base32 encoding in Emacs Lisp
 #+property: header-args :tangle base32.el :lexical t
 #+startup: nologdone show2levels
 #+todo: TODO(t@) HOLD(h@/!) | DONE(d@)
@@ -10,7 +9,7 @@
 #+todo: TEST(u) TEST-FAILED(f) | TEST-PASSED(p)
 #+todo: DEPRECATED(r@) | OBSOLETE(o@)
 
-This is a port of =cl-base32=.
+This is a port of =cl-base32= by Phil Hargett.
 
 [[http://tools.ietf.org/html/rfc4648][Base32 encoding]] (IETF)
 
@@ -69,6 +68,70 @@ t
 [224 225 226 227 228 229 230 231 232 233]
 #+end_example
 
+* Installation
+** Gentoo
+Add the ebuild repository and install from there:
+#+begin_src sh :dir /sudo::/ :tangle no :results none
+eselect repository enable akater
+emerge app-emacs/base32
+#+end_src
+
+** Other systems
+*** Install dependencies
+Ensure the following dependency is installed:
+- [[https://framagit.org/akater/elisp-cl-bytes][cl-bytes]]
+
+*** Use ~package-vc~ (Emacs 29 and later)…
+#+begin_src elisp :tangle no :results none
+(package-vc-install
+ '( base32
+    :url "https://framagit.org/akater/elisp-base32"
+    :branch "elpa-release"))
+#+end_src
+
+*** …or install manually
+Clone ~base32~, switch to =release= branch.
+
+~base32~ can be installed into system-wide directory =/usr/share/emacs/site-lisp= (or wherever your ~SITELISP~ envvar points to) with
+#+begin_src sh :tangle no :results none
+make && sudo make install
+#+end_src
+but it's best to define a package for your package manager to do this instead.
+
+If your package manager can't do that, and you don't want to install with elevated permissions, do
+#+begin_src sh :tangle no :results none
+SITELISP=~/.config/emacs/lisp SITEETC=~/.config/emacs/etc make && \
+DESTDIR=~/.config/emacs SITELISP=/lisp SITEETC=/etc make install
+#+end_src
+(you may simply eval this block with =C-c C-c=; it won't be informative if it fails but hopefully it'll work)
+
+In any case, you'll have to add load-path to your config, as demonstrated in [[Suggested config]].
+
+The dependency should be installed into versionless directory because our Makefile presumes it is versionless.  ~package-vc~ does install it this way; if you don't use it, you're on your own.
+
+** Notes for contiributors
+If you have a local version of repository, compile with
+#+begin_example sh :tangle no :results none
+ORG_LOCAL_SOURCES_DIRECTORY="/home/contributor/src/elisp-base32"
+#+end_example
+
+This will link function definitions to your local Org files.
+
+** Tests
+If you want to run tests for ~base32~, ensure the following dependencies are installed:
+- [[https://framagit.org/akater/org-run-tests][ORT]]
+
+* Suggested config
+#+begin_example elisp
+(use-package base32 :ensure nil :defer t
+  ;; Note: on Gentoo, or when using `package-vc',
+  ;; there is no need to specify load-path
+  :load-path "/usr/share/emacs/site-lisp/base32"
+  ;; or maybe
+  ;; :load-path "~/.config/emacs/lisp/base32"
+  )
+#+end_example
+
 * Dependencies
 ** Runtime and build-time dependencies
 #+begin_src elisp :results none
@@ -90,13 +153,13 @@ t
 
 #+begin_src elisp :results none
 (defun base32--encode-word (a-word)
-  "Return the digit in the base32 alphabet corresponding to a word"
+  "Return the digit in the base32 alphabet corresponding to a word A-WORD."
   (cl-char base32-alphabet a-word))
 #+end_src
 
 #+begin_src elisp :results none
 (defun base32--decode-word (a-digit)
-  "Return the word encoded as a digit in the base32 alphabet"
+  "Return the word encoded as a digit A-DIGIT in the base32 alphabet."
   (let ((code (cl-char-code a-digit)))
     (cond
      ((cl-char<= ?a a-digit ?z)
@@ -157,7 +220,7 @@ t
 
 #+begin_src elisp :results none
 (defun base32--write-word (some-bytes word-index word)
-  "Write the word into the bits located at WORD-INDEX in SOME-BYTES"
+  "Write the WORD into the bits located at WORD-INDEX in SOME-BYTES."
   (let* ((bytes-length (length some-bytes))
          ;; don't be confused : bit indexes aren't really pointing to
          ;; the bit as understood by Lisp--they are more virtual in nature,
@@ -193,20 +256,51 @@ t
 #+end_src
 
 * Lengths
-#+begin_src elisp :results none
-(defun base32--unpadded-length (base32-string)
-  "Given a base32 string, compute the size of the raw base32 string, without any = padding."
-  (let* ((padded-length (length base32-string))
-         (unpadded-length padded-length))
-    (cl-dotimes (i padded-length)
-      (if (char-equal ?= (aref base32-string (- padded-length i)))
-          (cl-decf unpadded-length)
-        (cl-return unpadded-length)))))
+** unpadded-length
+*** Notes
+This is not used, is buggy in the original implementation, and the semantics is unclear to me.  I nevertheless leave the code here.
+
+*** Examples
+**** Basic Examples
+***** TEST-PASSED The length sans padding
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(base32--unpadded-length "4dq6fy7e4xtop2hj====")
 #+end_src
 
+#+EXPECTED:
+#+begin_example elisp
+16
+#+end_example
+
+**** Possible Issues
+***** TEST-PASSED The argument type is unclear
+I just don't know if it's considered a base32 string.
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(base32--unpadded-length "===")
+#+end_src
+
+#+EXPECTED:
+#+begin_example elisp
+0
+#+end_example
+
+** Dependencies
+#+begin_src elisp :results none
+(require 'cl-seq)
+#+end_src
+
+** Definition
+#+begin_src elisp :results none
+(defun base32--unpadded-length (base32-string)
+  "Given a BASE32-STRING, return the size of the raw string, without any = padding."
+  (1+ (or (cl-position ?= base32-string :from-end t :test-not #'char-equal)
+          -1)))
+#+end_src
+
+** byte-length
 #+begin_src elisp :results none
 (defun base32-byte-length (base32-string)
-  "Given a base32 string, compute the number of bytes in the decoded data."
+  "Given a BASE32-STRING, compute the number of bytes in the decoded data."
   (let* ((padded-length (length base32-string))
          (unpadded-length padded-length)
          (padding 0)
@@ -228,18 +322,17 @@ t
 
 #+begin_src elisp :results none
 (defun base32-length-from-bytes (some-bytes)
-  "Given bytes of unencoded data, determine the length of the
-   corresponding base32-encoded string
-  "
+  "Determine the length of the base32-encoded string corresponding to SOME-BYTES."
   (let* ((word-count (ceiling (* 8 (length some-bytes)) 5) )
          (digit-count (* 8 (ceiling word-count 8))))
     (cl-values digit-count word-count)))
 #+end_src
 
 * Converters
+** From bytes
 #+begin_src elisp :results none
 (defun base32-from-bytes (some-bytes)
-  "Return a base32 string encoding of the provided vector of bytes."
+  "Return a base32 string encoding of the provided vector of SOME-BYTES."
   (let* ((word-count (ceiling (* 8 (length some-bytes)) 5))
          (digit-count (* 8 (ceiling word-count 8)))
          (base32-string (make-string digit-count ?=)))
@@ -249,9 +342,23 @@ t
     base32-string))
 #+end_src
 
+** To bytes
+*** Examples
+**** Possible Issues
+***** TEST-PASSED No type checking is done
+#+begin_src elisp :tangle no :results code :wrap example elisp
+(base32-to-bytes "1")
+#+end_src
+
+#+EXPECTED:
+#+begin_example elisp
+[0 0 0 0 0]
+#+end_example
+
+*** Definition
 #+begin_src elisp :results none
 (defun base32-to-bytes (base32-string)
-  "Return the bytes decoded from the supplied base32 string."
+  "Return the bytes decoded from the supplied BASE32-STRING."
   (let* ((byte-count (base32-byte-length base32-string))
          (base32-bytes (make-vector byte-count
                                     ;; :element-type '(unsigned-byte 8) 

@@ -3,7 +3,7 @@
 ;; Copyright (C) 2023--2024 Dima Akater
 ;; Author: Dima Akater <nuclearspace@gmail.com>
 ;; Maintainer: Dima Akater <nuclearspace@gmail.com>
-;; Version: 0.0.20240123.215346
+;; Version: 0.0.20240123.215407
 ;; Package-Requries: ((emacs "27.1") (cl-bytes "0.0.20240122.0"))
 
 
@@ -42,13 +42,13 @@
 
 ;; [[file:base32.org::*Encoding digits][Encoding digits:2]]
 (defun base32--encode-word (a-word)
-  "Return the digit in the base32 alphabet corresponding to a word"
+  "Return the digit in the base32 alphabet corresponding to a word A-WORD."
   (cl-char base32-alphabet a-word))
 ;; Encoding digits:2 ends here
 
 ;; [[file:base32.org::*Encoding digits][Encoding digits:3]]
 (defun base32--decode-word (a-digit)
-  "Return the word encoded as a digit in the base32 alphabet"
+  "Return the word encoded as a digit A-DIGIT in the base32 alphabet."
   (let ((code (cl-char-code a-digit)))
     (cond
      ((cl-char<= ?a a-digit ?z)
@@ -108,7 +108,7 @@
 
 ;; [[file:base32.org::*Read, write][Read, write:2]]
 (defun base32--write-word (some-bytes word-index word)
-  "Write the word into the bits located at WORD-INDEX in SOME-BYTES"
+  "Write the WORD into the bits located at WORD-INDEX in SOME-BYTES."
   (let* ((bytes-length (length some-bytes))
          ;; don't be confused : bit indexes aren't really pointing to
          ;; the bit as understood by Lisp--they are more virtual in nature,
@@ -143,20 +143,20 @@
       (setf (aref some-bytes part2-byte-index) part2-byte))))
 ;; Read, write:2 ends here
 
-;; [[file:base32.org::*Lengths][Lengths:1]]
-(defun base32--unpadded-length (base32-string)
-  "Given a base32 string, compute the size of the raw base32 string, without any = padding."
-  (let* ((padded-length (length base32-string))
-         (unpadded-length padded-length))
-    (cl-dotimes (i padded-length)
-      (if (char-equal ?= (aref base32-string (- padded-length i)))
-          (cl-decf unpadded-length)
-        (cl-return unpadded-length)))))
-;; Lengths:1 ends here
+;; [[file:base32.org::*Dependencies][Dependencies:1]]
+(require 'cl-seq)
+;; Dependencies:1 ends here
 
-;; [[file:base32.org::*Lengths][Lengths:2]]
+;; [[file:base32.org::*Definition][Definition:1]]
+(defun base32--unpadded-length (base32-string)
+  "Given a BASE32-STRING, return the size of the raw string, without any = padding."
+  (1+ (or (cl-position ?= base32-string :from-end t :test-not #'char-equal)
+          -1)))
+;; Definition:1 ends here
+
+;; [[file:base32.org::*byte-length][byte-length:1]]
 (defun base32-byte-length (base32-string)
-  "Given a base32 string, compute the number of bytes in the decoded data."
+  "Given a BASE32-STRING, compute the number of bytes in the decoded data."
   (let* ((padded-length (length base32-string))
          (unpadded-length padded-length)
          (padding 0)
@@ -174,21 +174,19 @@
 	   (4 3)
 	   (3 2)
 	   (1 1))))))
-;; Lengths:2 ends here
+;; byte-length:1 ends here
 
-;; [[file:base32.org::*Lengths][Lengths:3]]
+;; [[file:base32.org::*byte-length][byte-length:2]]
 (defun base32-length-from-bytes (some-bytes)
-  "Given bytes of unencoded data, determine the length of the
-   corresponding base32-encoded string
-  "
+  "Determine the length of the base32-encoded string corresponding to SOME-BYTES."
   (let* ((word-count (ceiling (* 8 (length some-bytes)) 5) )
          (digit-count (* 8 (ceiling word-count 8))))
     (cl-values digit-count word-count)))
-;; Lengths:3 ends here
+;; byte-length:2 ends here
 
-;; [[file:base32.org::*Converters][Converters:1]]
+;; [[file:base32.org::*From bytes][From bytes:1]]
 (defun base32-from-bytes (some-bytes)
-  "Return a base32 string encoding of the provided vector of bytes."
+  "Return a base32 string encoding of the provided vector of SOME-BYTES."
   (let* ((word-count (ceiling (* 8 (length some-bytes)) 5))
          (digit-count (* 8 (ceiling word-count 8)))
          (base32-string (make-string digit-count ?=)))
@@ -196,11 +194,11 @@
       (setf (aref base32-string i)
             (base32--encode-word (base32--read-word some-bytes i))))
     base32-string))
-;; Converters:1 ends here
+;; From bytes:1 ends here
 
-;; [[file:base32.org::*Converters][Converters:2]]
+;; [[file:base32.org::*Definition][Definition:1]]
 (defun base32-to-bytes (base32-string)
-  "Return the bytes decoded from the supplied base32 string."
+  "Return the bytes decoded from the supplied BASE32-STRING."
   (let* ((byte-count (base32-byte-length base32-string))
          (base32-bytes (make-vector byte-count
                                     ;; :element-type '(unsigned-byte 8) 
@@ -211,7 +209,7 @@
             (base32--write-word base32-bytes i word)
           (cl-return))))
     base32-bytes))
-;; Converters:2 ends here
+;; Definition:1 ends here
 
 (provide 'base32)
 
